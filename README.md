@@ -55,6 +55,7 @@ Options:
   --help                Show this message and exit.
 
 Commands:
+  branch-protection
   repo-status
   repos
   teams
@@ -67,6 +68,25 @@ Debug mode is off
 Retrieve protected-status of repo EXAMPLE-ORG/repo-1
 User USER logged in.
  EXAMPLE-ORG/repo-1.................................... 🛡 has protected default-branch `develop` 
+```
+
+You can also configure a predefined team-repository list in a YAML file like `config.yaml`:
+```yaml
+teams:
+  - name: magic-maniacs
+    repos:
+      - EXAMPLE-ORG/repo-1
+      - EXAMPLE-ORG/repo-2
+```
+Then run the command _branch-protection_ by passing the YAML file as argument:
+```shell
+$ ./collect-github.py branch-protection config.yaml 
+Debug mode is off
+Retrieve branch-protection for repos from config-file: config.yaml
+User USER logged in.
+Collecting 2 repositories for team 'magic-maniacs'
+ EXAMPLE-ORG/repo-1..................................... 🛡 has protected default-branch `develop` 
+ EXAMPLE-ORG/repo-2..................................... 🚨 has no protection on default-branch `main` 
 ```
 
 ## Documentation
