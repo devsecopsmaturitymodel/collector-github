@@ -3,6 +3,11 @@ from github import Auth
 
 ERROR_PREFIX = "[ERROR]"
 
+# change log level from default INFO to WARNING for github, to avoid that
+# GitHub server is redirecting from master to main causing client to output on _logger.info
+# Following Github server redirection from /repos/EXAMPLE-ORG/repo-1/branches/master to /repos/EXAMPLE-ORG/repo-1/branches/main
+github.set_log_level(logging.WARNING)
+
 
 class GitHubCollector:
 
@@ -47,12 +52,39 @@ class GitHubCollector:
 
     @staticmethod
     def print_repo_protection(repo, prefix='', suffix=''):
+        found_branches = []
         try:
             default_branch = repo.get_branch(repo.default_branch)
+            found_branches.append(default_branch.name)
             protection_status = (f"{'🛡 has protected' if default_branch.protected else '🚨 has no protection on'}"
                                  f" default-branch `{default_branch.name}`")
         except GithubException as e:
-            protection_status = f'⭕ unknown default-branch {ERROR_PREFIX} {e}'
+            protection_status = f'⭕ unknown default-branch {ERROR_PREFIX}'
+
+        status_include_branches = []
+        for branch_name in ['main', 'master']:
+            # if master branch already found as default or main branch found then avoid redirection
+            if branch_name in found_branches or (branch_name == 'master' and status_include_branches):
+                break
+            try:
+                branch = repo.get_branch(branch_name)
+                # avoid duplicates after redirection, see example output observed with logging.INFO:
+                # Following Github server redirection from /repos/EXAMPLE-ORG/repo-1/branches/master to /repos/EXAMPLE-ORG/repo-1/branches/dev
+                if branch.name in found_branches:
+                    break
+                found_branches.append(branch.name)
+                if branch.protected:
+                    status_include_branches.append(f"🛡 `{branch.name}`")
+                else:
+                    status_include_branches.append(f"🚨 `{branch_name}`")
+            except GithubException as e:
+                # ignore following exception if branch not found:
+                # github.GithubException.GithubException: 404 {"message": "Branch not found", "documentation_url": "https://docs.github.com/rest/branches/branches#get-a-branch"}
+                pass
+
+        if status_include_branches:
+            protection_status += ", " + ", ".join(status_include_branches)
+
         print(f"{prefix}", f"{repo.full_name:.<60}", protection_status, suffix)
 
     @staticmethod
